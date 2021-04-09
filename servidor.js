@@ -249,7 +249,7 @@ app.get('/', function (req, res) {
 
 
 //borrar el modelo 
-app.get('//eliminarModelo', async function (req, res) {
+app.get('/eliminarModelo', async function (req, res) {
   var sql =`DROP TABLE Hospital;
             DROP TABLE Ubicacion;
             DROP TABLE Tratamiento;

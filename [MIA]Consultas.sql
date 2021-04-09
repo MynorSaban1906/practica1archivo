@@ -29,25 +29,36 @@ SELECT v.NombreV,v.ApellidoV,v.EstadoVictima,a.EfectividadVictima,t.NombreT
 3. Mostrar el nombre, apellido y dirección de las víctimas fallecidas con más de
 tres personas asociadas.
 
+select distinct count(ac.PersonasConocidasId) as conocidos ,ac.VictimaId
+from AsignaConocidos ac
+inner join Victima v on v.idVictima=ac.VictimaId
+where v.FechaMuerte!=''
+group by ac.VictimaId
+having conocidos>3
+
+
 SELECT  v.NombreV,v.ApellidoV,v.DireccionV,count(a.VictimaId) as Asociados
 	FROM ContactoVictima a
 	INNER JOIN  Victima v
 	ON a.VictimaId=v.idVictima
     where v.FechaMuerte!=''
     group by (a.VictimaId)
-    having Asociados>3 ;
-    
-SELECT distinct v.idVictima,v.NombreV,v.ApellidoV,v.DireccionV,count(a.ConocidoId)
+    having Asociados>3 
+
+
+
+   
+SELECT distinct v.idVictima,v.NombreV,v.ApellidoV,v.DireccionV,count(a.ConocidoId) as asociados
 	FROM ContactoVictima a
 	INNER JOIN  Victima v
 	ON a.VictimaId=v.idVictima
     where v.FechaMuerte!=''
-    group by (a.ConocidoId);
-    having asociados>3 ;
+    group by (a.ConocidoId)
+    having asociados>3
 
 
 
-4. Mostrar el nombre y apellido de todas las víctimas en estado “Suspendida”
+4. Mostrar el nombre y apellido de todas las víctimas en estado “Sospecha”
 que tuvieron contacto físico de tipo “Beso” con más de 2 de sus asociados.
 
 SELECT c.Tipo_Contacto, v.NombreV,v.ApellidoV,v.EstadoVictima,count(a.VictimaId) as Asociados
@@ -56,9 +67,18 @@ SELECT c.Tipo_Contacto, v.NombreV,v.ApellidoV,v.EstadoVictima,count(a.VictimaId)
 	ON a.VictimaId=v.idVictima 
     INNER JOIN ContactoVictima  c
 	ON c.VictimaId=v.idVictima and c.ConocidoId=a.PersonasConocidasId  
-    where v.EstadoVictima like '%sospecha%' and c.Tipo_Contacto='Beso'
+    where v.EstadoVictima='Sospecha' and c.Tipo_Contacto='Beso'
     group by (a.VictimaId)
     having Asociados>2 ;
+    
+select distinct count(ac.PersonasConocidasId) as conocidos ,ac.VictimaId ,v.NombreV,v.ApellidoV from AsignaConocidos ac
+inner join Victima v on v.idVictima= ac.VictimaId
+inner join ContactoVictima cv on cv.VictimaId= ac.VictimaId
+where cv.Tipo_Contacto='Beso' and v.EstadoVictima='Sospecha'
+group by ac.VictimaId,v.NombreV,v.ApellidoV
+having conocidos>2
+    
+
     
 
 
@@ -97,6 +117,17 @@ SELECT distinct v.NombreV,v.ApellidoV,v.FechaMuerte,u.Direccion,t.NombreT
 allegados los cuales hayan estado en un hospital y que se le hayan aplicado
 únicamente dos tratamientos.
 
+
+
+select distinct count(ac.PersonasConocidasId) as conocidos ,ac.VictimaId, ah.HospitalId from AsignaConocidos ac
+inner join AsignaHospital ah on ah.VictimaId=ac.VictimaId
+group by ac.VictimaId, ah.HospitalId
+having conocidos<3
+
+
+select  count(idTratamiento) as Tratamientos from AsignaTratamiento
+group by idVictima
+having Tratamientos=2
     
 SELECT  v.NombreV,v.ApellidoV,v.DireccionV,count(a.VictimaId) as Asociados
 	FROM ContactoVictima a
@@ -110,18 +141,22 @@ SELECT  v.NombreV,v.ApellidoV,v.DireccionV,count(a.VictimaId) as Asociados
 	group by a.VictimaId
 	having Asociados<2;
  
-select v.NombreV,v.ApellidoV,v.DireccionV,count(distinct a.IdConocido) as asociados
-from Victima as v
-inner join ContactoVictima as cv on cv.VictimaId=v.idVictima
-inner join PersonasConocida as a on a.IdConocido=cv.ConocidoId
-inner join AsignaTratamiento as att on att.idVictima=v.idVictima
-inner join Tratamiento as t on t.idTratamiento=att.idTratamiento
+select v.NombreV,v.ApellidoV,v.DireccionV from ContactoVictima as cv
+inner join Victima as v on cv.VictimaId=v.idVictima
 inner join AsignaHospital as ah on ah.VictimaId=v.idVictima
-inner join Hospital as h on h.idHospital=ah.HospitalId 
-WHERE h.NombreH!=''
-group by v.NombreV,v.ApellidoV,v.DireccionV
-having count(distinct cv.ConocidoId)<2 and count(distinct t.idTratamiento)=2
-order by v.NombreV;
+where ( select count(*)
+from AsignaConocidos ac
+group by VictimaId
+having ac.VictimaId=v.idVictima )=1
+and (
+	select count(*)
+    from AsignaTratamiento t
+    group by t.idVictima
+    having t.idVictima=v.idVictima)=2
+    group by v.NombreV,v.ApellidoV,v.DireccionV ;
+
+
+
 
 8. Mostrar el número de mes ,de la fecha de la primera sospecha, nombre y
 apellido de las víctimas que más tratamientos se han aplicado y las que
@@ -184,10 +219,45 @@ siguiente manera: nombre de hospital, nombre del contacto físico, porcentaje
 de víctimas.
 
 
-select a.HospitalId as IdHospital,h.NombreH as Hospital,count(a.VictimaId) as Pacientes_En_Hospital
-from AsignaHospital as a  inner join Victima as v
-on a.VictimaId=v.idVictima
-inner join Hospital as h
-on a.HospitalId=h.idHospital
-where v.FechaMuerte=''
-group by a.HospitalId;
+select y.hospital,y.contacto ,MAX(y.cantidad) y.cantidad from (
+select ah.HospitalId as hospital ,cv.Tipo_Contacto as contacto, count(cv.Tipo_Contacto) as cantidad
+from ContactoVictima cv
+inner join AsignaHospital ah on cv.VictimaId=ah.VictimaId
+group by ah.HospitalId,cv.Tipo_Contacto 
+) as y
+group by  y.hospital,y.contacto 
+
+
+
+
+
+select a.HospitalId,h.NombreH,count(a.VictimaId)/(
+select sum(p.pacientes) from (select count(a.VictimaId) as pacientes
+	from AsignaHospital as a 
+	inner join Hospital as h
+	on a.HospitalId=h.idHospital
+	group by a.HospitalId) as p) as pacientes
+	from AsignaHospital as a 
+	inner join Hospital as h
+	on a.HospitalId=h.idHospital
+	group by a.HospitalId ;
+
+
+Select Nombre, Contacto,Cantidad, Porcentaje from(
+	select h.NombreH As Nombre,cv.Tipo_Contacto as Contacto, Count(*) as Cantidad,
+		concat(
+			round(
+			(count(*)/(select count(*)from AsignaHospital
+				inner join Victima v on AsignaHospital.VictimaId=v.idVictima
+                inner join Hospital h on h.idHospital=AsignaHospital.HospitalId
+                inner join ContactoVictima cv on cv.VictimaId=v.idVictima)*100),2),"%"
+                ) as Porcentaje
+                from AsignaHospital ah
+                inner join Victima v on ah.VictimaId=v.idVictima
+                inner join Hospital h on h.idHospital= ah.HospitalId
+                inner join ContactoVictima cv on cv.VictimaId= ah.VictimaId
+                group by h.idHospital,cv.Tipo_contacto
+                order by Cantidad desc
+                ) as Victimas
+                group by (Nombre);
+
